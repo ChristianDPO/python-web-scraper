@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.scrape import router as scrape_router
+from webscraper.api.scrape import router as scrape_router
 
 app = FastAPI(title="Web Scrapping API")
 

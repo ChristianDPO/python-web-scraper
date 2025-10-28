@@ -1,4 +1,6 @@
+setuptools
 uvicorn[standart]
 fastapi
 pydantic
 flake8
+playwright

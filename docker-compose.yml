@@ -1,7 +1,29 @@
+volumes:
+  redis_data:
+    name: redis_data
+
 services:
-  scrapper-api:
+  scraper-api:
     build: .
-    container_name: web-scrapper-api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    container_name: web-scraper-api
+    command: uvicorn webscraper.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
+
+  redis:
+    image: redis:8.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     
+      - "15672:15672"   
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
