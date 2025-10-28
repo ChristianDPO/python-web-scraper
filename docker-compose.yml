@@ -6,7 +6,9 @@ services:
   scraper-api:
     build: .
     container_name: web-scraper-api
-    command: uvicorn webscraper.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn webscraper.app:create_app --host 0.0.0.0 --port 8000 --factory
+    env_file:
+      - .env
     ports:
       - "8000:8000"
 

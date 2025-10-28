@@ -4,3 +4,6 @@ fastapi
 pydantic
 flake8
 playwright
+aio_pika
+pydantic
+pydantic_settings
