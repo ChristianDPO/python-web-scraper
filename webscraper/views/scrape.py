@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request
-from webscraper.services.scrape import ScrapeService
 
+from webscraper.models.message_dto import ScrapeJobMessageDTO
+
+from webscraper.helpers.views_helper import ViewsHelper
 
 router = APIRouter(prefix="/scrape", tags=["scraping"])
 
@@ -11,13 +13,10 @@ async def scrape(
     cnpj: str,
 ):
 
-    config = request.app.state.settings
+    message = ScrapeJobMessageDTO(cnpj=cnpj)
 
-    scraper_service = ScrapeService(
-        scrape_url=config.scrape_url,
-        rabbitmq_url=config.rabbitmq_url,
-        rabbitmq_queue=config.rabbitmq_queue,
-    )
+    rabbitmq_client = request.app.state.rabbitmq_client
 
-    job = await scraper_service.create_scrape_job(cnpj=cnpj)
-    return job
+    await rabbitmq_client.publish(message)
+
+    return ViewsHelper.make_response(data=message)

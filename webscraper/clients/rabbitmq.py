@@ -13,13 +13,11 @@ class AsyncRabbitMQClient(object):
         :param str url: RabbitMQ connection URL
         :param str queue_name: Name of the queue for publishing/consuming messages
         :param aio_pika.RobustConnection connection: Active RabbitMQ connection
-        :param aio_pika.Channel channel: Channel associated with the connection
         """
 
         self.url = url
         self.queue_name = queue_name
-        self.connection = None
-        self.channel = None
+        self._connection = None
 
     async def connect(self):
         """
@@ -30,11 +28,10 @@ class AsyncRabbitMQClient(object):
         :rtype: None
         """
 
-        if not self.connection:
-
-            self.connection = await aio_pika.connect_robust(self.url)
-            self.channel = await self.connection.channel()
-            await self.channel.declare_queue(self.queue_name, durable=True)
+        if not self._connection:
+            self._connection = await aio_pika.connect_robust(self.url)
+            async with self._connection.channel() as channel:
+                await channel.declare_queue(self.queue_name, durable=True)
 
     async def publish(self, body):
         """
@@ -45,39 +42,40 @@ class AsyncRabbitMQClient(object):
         :rtype: None
         """
 
-        if not self.connection:
-            await self.connect()
+        await self.connect()
 
         message = aio_pika.Message(body.json().encode())
-        await self.channel.default_exchange.publish(
-            message, routing_key=self.queue_name
-        )
+
+        async with self._connection.channel() as channel:
+            await channel.default_exchange.publish(message, routing_key=self.queue_name)
 
     async def consume_forever(self, callback):
         """
         Listens and consumes the messages from the queue forever.
+        Tries to reconnect
 
         :param callable callback: Async function to process each message (accepts dict)
         :return: None
         """
 
-        if not self.connection:
-            await self.connect()
+        await self.connect()
 
-        queue = await self.channel.get_queue(self.queue_name)
+        channel = await self._connection.channel()
+        queue = await channel.get_queue(self.queue_name)
 
-        try:
+        while True:
+            try:
 
-            async with queue.iterator() as queue_iter:
-                async for message in queue_iter:
-                    async with message.process():
-                        body = json.loads(message.body.decode())
-                        await callback(body)
+                async with queue.iterator() as queue_iter:
+                    async for message in queue_iter:
+                        async with message.process():
+                            body = json.loads(message.body.decode())
+                            await callback(body)
 
-        except aio_pika.exceptions.AMQPConnectionError:
-            # Tries to automatically reconnect
-            await asyncio.sleep(5)
-            await self.connect()
+            except aio_pika.exceptions.AMQPConnectionError:
+                # Tries to automatically reconnect
+                await asyncio.sleep(5)
+                await self.connect()
 
     async def close(self):
         """
@@ -87,7 +85,6 @@ class AsyncRabbitMQClient(object):
         :rtype: None
         """
 
-        if self.connection:
-            await self.connection.close()
-            self.connection = None
-            self.channel = None
+        if self._connection and not self._connection.is_closed:
+            await self._connection.close()
+            self._connection = None

@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from webscraper.views.scrape import router as scrape_router
+
 from webscraper.config import Settings
+
+from webscraper.clients.rabbitmq import AsyncRabbitMQClient
 
 
 def create_app():
@@ -12,5 +15,11 @@ def create_app():
 
     # Configuration
     app.state.settings = Settings()
+
+    # Clients
+    rabbitmq_client = AsyncRabbitMQClient(
+        app.state.settings.rabbitmq_url, app.state.settings.rabbitmq_queue
+    )
+    app.state.rabbitmq_client = rabbitmq_client
 
     return app

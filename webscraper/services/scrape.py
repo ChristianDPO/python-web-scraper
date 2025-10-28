@@ -1,5 +1,4 @@
 from webscraper.clients.rabbitmq import AsyncRabbitMQClient
-from webscraper.models.message_dto import ScrapeJobMessageDTO
 from playwright.async_api import async_playwright
 
 
@@ -21,19 +20,6 @@ class ScrapeService(object):
         self.rabbitmq_url = rabbitmq_url
         self.rabbitmq_queue = rabbitmq_queue
         self.rabbitmq_client = AsyncRabbitMQClient(rabbitmq_url, rabbitmq_queue)
-
-    async def queue_scrape_job(self, cnpj):
-        """
-        Create a scraping job message and send it to RabbitMQ.
-
-        :param str cnpj: CNPJ number of the company to scrape
-        :return ScrapeJobMessageDTO: The DTO representing the job that was published
-        """
-
-        message = ScrapeJobMessageDTO(cnpj=cnpj)
-        await self.rabbitmq_client.publish(message)
-        return message
-
 
     async def scrape(self, cnpj):
 

@@ -1,6 +1,9 @@
+
 volumes:
   redis_data:
     name: redis_data
+  rabbitmq_data:
+    name: rabbitmq_data
 
 services:
   scraper-api:
@@ -25,7 +28,9 @@ services:
     container_name: rabbitmq
     ports:
       - "5672:5672"     
-      - "15672:15672"   
+      - "15672:15672"
+    # volumes:
+    #     - rabbitmq_data:/var/lib/rabbitmq 
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
