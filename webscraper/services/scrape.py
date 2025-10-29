@@ -51,9 +51,11 @@ class ScrapeService(object):
             for item in items:
 
                 title_el = await item.query_selector(
-                    "span.label_title, div.label_title"
+                    "span.label_title, div.label_title, span.label_text:has(strong)"
                 )
-                value_el = await item.query_selector("span.label_text")
+                value_el = await item.query_selector(
+                    "span.label_text:not(:has(strong))"
+                )
 
                 title = await title_el.text_content() if title_el else None
                 value = await value_el.text_content() if value_el else None
