@@ -5,5 +5,6 @@ pydantic
 flake8
 playwright
 aio_pika
+redis
 pydantic
 pydantic_settings

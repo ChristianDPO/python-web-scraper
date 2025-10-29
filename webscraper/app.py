@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from webscraper.views.scrape import router as scrape_router
+from webscraper.views.results import router as results_router
 
 from webscraper.config import Settings
 
 from webscraper.clients.rabbitmq import AsyncRabbitMQClient
+from webscraper.clients.redis import AsyncRedisClient
 
 from webscraper.helpers.log import Log
 
@@ -14,6 +16,7 @@ def create_app():
 
     # Routing
     app.include_router(scrape_router)
+    app.include_router(results_router)
 
     # Configuration
     app.state.settings = Settings()
@@ -26,5 +29,8 @@ def create_app():
         app.state.settings.rabbitmq_url, app.state.settings.rabbitmq_queue
     )
     app.state.rabbitmq_client = rabbitmq_client
+
+    redis_client = AsyncRedisClient(app.state.settings.redis_url)
+    app.state.redis_client = redis_client
 
     return app

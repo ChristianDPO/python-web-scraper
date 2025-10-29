@@ -1,19 +1,26 @@
 from playwright.async_api import async_playwright
 
+from webscraper.models.cache_dto import CacheMessageDTO
+
 
 class ScrapeService(object):
     """
     Service class for web scraping using Playwright.
     """
 
-    def __init__(self, scrape_url):
+    SCRAPE_JOB_REDIS_PREFIX = "scrape_job:"
+    DEFAULT_SCRAPE_CACHE_TTL = "3600"
+
+    def __init__(self, scrape_url, redis_client=None):
         """
         Initialize the ScrapeService with the URL to scrape.
 
         :param str scrape_url: URL of the page to scrape
+        :param webscraper.clients.redis.AsynchRedisClient: An optional Redis client for caching results
         :rtype: None
         """
         self.scrape_url = scrape_url
+        self._redis_client = redis_client
 
     async def scrape(self, cnpj):
         """
@@ -53,3 +60,29 @@ class ScrapeService(object):
 
             await browser.close()
             return data
+
+    async def set_cache(self, cnpj, cache):
+        """
+        Caches the scraped data in Redis with a key based on the CNPJ.
+
+        :param str cnpj: The CNPJ number
+        :param webscraper.models.cache_dto.CacheMessageDTO cache: The scraped data to cache
+        """
+        if self._redis_client:
+            key = f"{self.SCRAPE_JOB_REDIS_PREFIX}{cnpj}"
+            await self._redis_client.set_value(key, cache.model_dump(), ttl=3600)
+
+    async def get_cache(self, cnpj):
+        """
+        Retrieves cached scraped data from Redis for a given CNPJ.
+
+        :param str cnpj: The CNPJ number
+        :return: The cached scraped data if available, None otherwise
+        :rtype: webscraper.models.cache_dto.CacheMessageDTO | None
+        """
+        if self._redis_client:
+            key = f"{self.SCRAPE_JOB_REDIS_PREFIX}{cnpj}"
+            cache = await self._redis_client.get_value(key)
+            if cache:
+                return CacheMessageDTO(**cache)
+        return None

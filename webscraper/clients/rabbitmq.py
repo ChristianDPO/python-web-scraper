@@ -71,9 +71,8 @@ class AsyncRabbitMQClient(object):
                             self.logger.info(f"Received message: {body}")
                             try:
                                 await callback(body)
-                            except Exception:
-                                print(Exception)
-                                await message.nack(requeue=True)
+                            except Exception as e:
+                                self.logger.exception(f"Error processing message: {e}")
 
             except aio_pika.exceptions.AMQPConnectionError:
                 # Tries to automatically reconnect

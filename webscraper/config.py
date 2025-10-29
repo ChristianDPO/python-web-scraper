@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     :param rabbitmq_url: URL of the RabbitMQ server
     :param rabbitmq_queue: Name of the RabbitMQ queue for publishing/consuming messages
     :param redis_url: URL of the Redis server
-    :param redis_queue: Name of the Redis queue for storing job statuses
     :param log_level: Logging level for the application. Defaults to "INFO"
     """
 
@@ -23,7 +22,6 @@ class Settings(BaseSettings):
 
     # Redis
     redis_url: str
-    redis_queue: str
 
     # Logging
     log_level: str = "INFO"
