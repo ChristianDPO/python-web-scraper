@@ -45,11 +45,14 @@ class ScrapeService(object):
             await page.click('input[name="btCGC"][type="submit"]')
             await page.wait_for_selector("div.container.doc", state="visible")
 
-            items = await page.query_selector_all("div.item")
+            items = await page.query_selector_all("div.item, div.col.box")
             data = {}
 
             for item in items:
-                title_el = await item.query_selector("span.label_title")
+
+                title_el = await item.query_selector(
+                    "span.label_title, div.label_title"
+                )
                 value_el = await item.query_selector("span.label_text")
 
                 title = await title_el.text_content() if title_el else None
