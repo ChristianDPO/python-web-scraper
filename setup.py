@@ -11,5 +11,6 @@ setup(
         "webscraper/clients",
         "webscraper/models",
         "webscraper/helpers",
+        "webscraper/scripts",
     ],
 )

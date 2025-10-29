@@ -1,25 +1,19 @@
-from webscraper.clients.rabbitmq import AsyncRabbitMQClient
 from playwright.async_api import async_playwright
 
 
 class ScrapeService(object):
     """
-    Service responsible for creating scraping jobs and sending them to RabbitMQ.
+    Service class for web scraping using Playwright.
     """
 
-    def __init__(self, scrape_url, rabbitmq_url, rabbitmq_queue):
+    def __init__(self, scrape_url):
         """
         Initialize the ScrapeService with URLs and RabbitMQ queue info.
 
-        :param scrape_url: URL of the page to scrape (not used in this snippet but may be for worker)
-        :param rabbitmq_url: Connection URL for RabbitMQ
-        :param rabbitmq_queue: Name of the RabbitMQ queue to publish messages to
+        :param scrape_url: URL of the page to scrape
         """
 
         self.scrape_url = scrape_url
-        self.rabbitmq_url = rabbitmq_url
-        self.rabbitmq_queue = rabbitmq_queue
-        self.rabbitmq_client = AsyncRabbitMQClient(rabbitmq_url, rabbitmq_queue)
 
     async def scrape(self, cnpj):
 

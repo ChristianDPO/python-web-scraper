@@ -2,6 +2,8 @@ import aio_pika
 import asyncio
 import json
 
+from webscraper.helpers.log import Log
+
 
 class AsyncRabbitMQClient(object):
     """
@@ -18,6 +20,7 @@ class AsyncRabbitMQClient(object):
         self.url = url
         self.queue_name = queue_name
         self._connection = None
+        self.logger = Log.get_logger(__name__)
 
     async def connect(self):
         """
@@ -49,12 +52,15 @@ class AsyncRabbitMQClient(object):
         async with self._connection.channel() as channel:
             await channel.default_exchange.publish(message, routing_key=self.queue_name)
 
+        self.logger.info(f"Sent message: {body.model_dump()}")
+
     async def consume_forever(self, callback):
         """
         Listens and consumes the messages from the queue forever.
         Tries to reconnect
 
-        :param callable callback: Async function to process each message (accepts dict)
+        :param callable(dict) callback: Async function to process each message.
+        Needs to accept a dict (message body) as parameter.
         :return: None
         """
 
@@ -70,7 +76,12 @@ class AsyncRabbitMQClient(object):
                     async for message in queue_iter:
                         async with message.process():
                             body = json.loads(message.body.decode())
-                            await callback(body)
+                            self.logger.info(f"Received message: {body}")
+                            try:
+                                await callback(body)
+                            except Exception:
+                                print(Exception)
+                                await message.nack(requeue=True)
 
             except aio_pika.exceptions.AMQPConnectionError:
                 # Tries to automatically reconnect

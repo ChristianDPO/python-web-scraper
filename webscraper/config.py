@@ -14,5 +14,8 @@ class Settings(BaseSettings):
     redis_url: str
     redis_queue: str
 
+    # Logging
+    log_level: str = "INFO"
+
     class Config:
         env_file = ".env"

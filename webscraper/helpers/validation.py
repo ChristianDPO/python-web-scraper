@@ -21,10 +21,8 @@ class ValidationHelper(object):
             raise ValueError("validate_string expects a string value.")
 
         if not re.fullmatch(validation_pattern, value):
-            raise ValueError(
-                f"Invalid format for {field_name}"
-            )
-        
+            raise ValueError(f"Invalid format for {field_name}")
+
         return value
 
     @staticmethod

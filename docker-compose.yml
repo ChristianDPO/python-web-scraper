@@ -34,3 +34,12 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+  worker:
+    build: .
+    command: python -m webscraper.scripts.run_worker
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    restart: always
