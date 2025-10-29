@@ -2,6 +2,17 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """
+    Application configuration settings loaded from environment variables.
+    It is created by getting all env variables declared in a .env file.
+
+    :param scrape_url: URL of the page to be scraped
+    :param rabbitmq_url: URL of the RabbitMQ server
+    :param rabbitmq_queue: Name of the RabbitMQ queue for publishing/consuming messages
+    :param redis_url: URL of the Redis server
+    :param redis_queue: Name of the Redis queue for storing job statuses
+    :param log_level: Logging level for the application. Defaults to "INFO"
+    """
 
     # Scrape URL
     scrape_url: str

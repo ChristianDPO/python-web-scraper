@@ -7,16 +7,15 @@ from webscraper.helpers.log import Log
 
 class AsyncRabbitMQClient(object):
     """
-    Asynchronous RabbitMQ client for publishing messages to a single queue
+    Asynchronous RabbitMQ client for publishing messages to a single queue.
     """
 
     def __init__(self, url, queue_name):
         """
         :param str url: RabbitMQ connection URL
         :param str queue_name: Name of the queue for publishing/consuming messages
-        :param aio_pika.RobustConnection connection: Active RabbitMQ connection
+        :rtype: None
         """
-
         self.url = url
         self.queue_name = queue_name
         self._connection = None
@@ -24,13 +23,11 @@ class AsyncRabbitMQClient(object):
 
     async def connect(self):
         """
-        Connects to RabbitMQ instance asynchronously, if it's not alredy connected.
-        Declares a new durbale queue it if does not exist.
+        Connects to RabbitMQ instance asynchronously, if it's not already connected.
+        Declares a new durable queue if it does not exist.
 
-        :return: None
         :rtype: None
         """
-
         if not self._connection:
             self._connection = await aio_pika.connect_robust(self.url)
             async with self._connection.channel() as channel:
@@ -40,13 +37,10 @@ class AsyncRabbitMQClient(object):
         """
         Publishes a message to the queue asynchronously.
 
-        :param models.message_dto.QueueMessageDTO body: The message body to publish.
-        :return: None
+        :param webscraper.models.message_dto.QueueMessageDTO body: The message body to publish
         :rtype: None
         """
-
         await self.connect()
-
         message = aio_pika.Message(body.json().encode())
 
         async with self._connection.channel() as channel:
@@ -57,13 +51,12 @@ class AsyncRabbitMQClient(object):
     async def consume_forever(self, callback):
         """
         Listens and consumes the messages from the queue forever.
-        Tries to reconnect
+        Tries to reconnect automatically on connection errors.
 
         :param callable(dict) callback: Async function to process each message.
-        Needs to accept a dict (message body) as parameter.
-        :return: None
+                                         Needs to accept a dict (message body) as parameter.
+        :rtype: None
         """
-
         await self.connect()
 
         channel = await self._connection.channel()
@@ -71,7 +64,6 @@ class AsyncRabbitMQClient(object):
 
         while True:
             try:
-
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
                         async with message.process():
@@ -90,12 +82,10 @@ class AsyncRabbitMQClient(object):
 
     async def close(self):
         """
-        Closes the RabbitMQ connection asynchronously
+        Closes the RabbitMQ connection asynchronously.
 
-        :return: None
         :rtype: None
         """
-
         if self._connection and not self._connection.is_closed:
             await self._connection.close()
             self._connection = None

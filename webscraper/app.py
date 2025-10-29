@@ -5,6 +5,8 @@ from webscraper.config import Settings
 
 from webscraper.clients.rabbitmq import AsyncRabbitMQClient
 
+from webscraper.helpers.log import Log
+
 
 def create_app():
 
@@ -15,6 +17,9 @@ def create_app():
 
     # Configuration
     app.state.settings = Settings()
+
+    # Logging
+    Log.setup(app.state.settings.log_level)
 
     # Clients
     rabbitmq_client = AsyncRabbitMQClient(
