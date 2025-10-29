@@ -6,13 +6,20 @@ volumes:
 
 services:
   scraper-api:
-    build: .
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    image: web-scraper:latest
     container_name: web-scraper-api
     command: uvicorn webscraper.app:create_app --host 0.0.0.0 --port 8000 --factory
     env_file:
       - .env
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
 
   redis:
     image: redis:8.2
@@ -21,6 +28,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:4.1-management
@@ -33,12 +41,17 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    restart: unless-stopped
 
   worker:
-    build: .
+    build: 
+      dockerfile: Dockerfile
+      context: .
+    image: web-scraper:latest
     command: python -m webscraper.scripts.run_worker
     env_file:
       - .env
     depends_on:
       - rabbitmq
-    restart: always
+      - redis
+    restart: unless-stopped
