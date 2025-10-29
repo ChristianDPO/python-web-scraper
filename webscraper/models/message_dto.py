@@ -1,7 +1,8 @@
-from pydantic import BaseModel
+import re
+import pydantic
 
 
-class QueueMessageDTO(BaseModel):
+class QueueMessageDTO(pydantic.BaseModel):
     """
     Base DTO for messages in the RabbitMQ queue.
 
@@ -23,3 +24,14 @@ class ScrapeJobMessageDTO(QueueMessageDTO):
     job: str = "SCRAPE"
     status: str = "QUEUED"
     cnpj: str
+
+    @pydantic.field_validator("cnpj", mode="before")
+    def sanitize_cnpj(cls, v):
+        """
+        Remove all non-digit characters from the CNPJ and validate its length.
+        :raises: ValueError if invalid.
+        """
+        cnpj_digits = re.sub(r"\D", "", v)
+        if len(cnpj_digits) != 14:
+            raise ValueError(f"Invalid CNPJ: {v}")
+        return cnpj_digits

@@ -12,7 +12,7 @@ class AsyncRedisClient:
         """
         Initialize the Redis client.
 
-        :param str url: Redis connection URL (e.g., redis://localhost:6379/0)
+        :param str url: Redis connection URL
         :rtype: None
         """
         self.url = url
@@ -27,7 +27,6 @@ class AsyncRedisClient:
         """
         if not self._redis:
             self._redis = await redis.from_url(self.url)
-            self.logger.info(f"Connected to Redis at {self.url}")
 
     async def set_value(self, key, value, ttl=None):
         """
@@ -70,4 +69,3 @@ class AsyncRedisClient:
         if self._redis:
             await self._redis.close()
             self._redis = None
-            self.logger.info("Redis connection closed")

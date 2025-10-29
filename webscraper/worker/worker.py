@@ -1,3 +1,7 @@
+import aio_pika
+import asyncio
+import pydantic
+
 from webscraper.clients.rabbitmq import AsyncRabbitMQClient
 from webscraper.clients.redis import AsyncRedisClient
 
@@ -7,6 +11,8 @@ from webscraper.models.cache_dto import CacheMessageDTO
 from webscraper.services.scrape import ScrapeService
 
 from webscraper.helpers.log import Log
+
+from webscraper.exceptions import InvalidRabbitMQMessageException
 
 
 class ScrapeWorker(object):
@@ -33,28 +39,43 @@ class ScrapeWorker(object):
         :return: None
         """
 
-        await self._rabbitmq_client.connect()
-
-        while True:
-
+        try:
+            await self._rabbitmq_client.connect()
             await self._rabbitmq_client.consume_forever(self.process_message)
+        except aio_pika.exceptions.AMQPConnectionError:
+            self.logger.warning("Connection lost to RabbitMQ. Retrying in 5 seconds...")
+            await asyncio.sleep(5)
 
     async def process_message(self, message_body):
         """
         Process a scrape job message.
         :param dict message_body: The message body returned by RabbitMQ.
+        :raises webscraper.exceptions.InvalidRabbitMQMessageException: If the message format is invalid.
         Should be able to be translated to ScrapeJobMessageDTO
         """
 
         self.logger.info("Processing message:", message_body)
-        message = ScrapeJobMessageDTO(**message_body)
 
-        cache = CacheMessageDTO(status="IN_PROGRESS")
-        await self._scrape_service.set_cache(message.cnpj, cache)
+        try:
+            message = ScrapeJobMessageDTO(**message_body)
+        except pydantic.ValidationError:
+            self.logger.error("Invalid message format:", message_body)
+            raise InvalidRabbitMQMessageException("Invalid message format")
 
-        data = await self._scrape_service.scrape(message.cnpj)
+        await self._scrape_service.set_cache(
+            message.cnpj, CacheMessageDTO(status="IN_PROGRESS")
+        )
+
+        try:
+            data = await self._scrape_service.scrape(message.cnpj)
+        except Exception as e:
+            self.logger.error(f"Error scraping data for CNPJ {message.cnpj}: {e}")
+            await self._scrape_service.set_cache(
+                message.cnpj, CacheMessageDTO(status="FAILED", data={str(e)})
+            )
+            return
+
         self.logger.info(f"Scraped data for CNPJ {message.cnpj}: {data}")
-
-        if data:
-            cache = CacheMessageDTO(status="COMPLETED", data=data)
-            await self._scrape_service.set_cache(message.cnpj, cache)
+        await self._scrape_service.set_cache(
+            message.cnpj, CacheMessageDTO(status="COMPLETED", data=data)
+        )

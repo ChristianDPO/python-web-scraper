@@ -35,36 +35,39 @@ class ScrapeService(object):
         :rtype: dict
         """
         async with async_playwright() as p:
+            try:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
 
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+                await page.goto(self.scrape_url)
+                await page.click("input#rTipoDocCNPJ")
+                await page.fill("input#tCNPJ", cnpj)
+                await page.click('input[name="btCGC"][type="submit"]')
+                await page.wait_for_selector("div.container.doc", state="visible")
 
-            await page.goto(self.scrape_url)
-            await page.click("input#rTipoDocCNPJ")
-            await page.fill("input#tCNPJ", cnpj)
-            await page.click('input[name="btCGC"][type="submit"]')
-            await page.wait_for_selector("div.container.doc", state="visible")
+                items = await page.query_selector_all("div.item, div.col.box")
+                data = {}
 
-            items = await page.query_selector_all("div.item, div.col.box")
-            data = {}
+                for item in items:
 
-            for item in items:
+                    title_el = await item.query_selector(
+                        "span.label_title, div.label_title, span.label_text:has(strong)"
+                    )
+                    value_el = await item.query_selector(
+                        "span.label_text:not(:has(strong))"
+                    )
 
-                title_el = await item.query_selector(
-                    "span.label_title, div.label_title, span.label_text:has(strong)"
-                )
-                value_el = await item.query_selector(
-                    "span.label_text:not(:has(strong))"
-                )
+                    title = await title_el.text_content() if title_el else None
+                    value = await value_el.text_content() if value_el else None
 
-                title = await title_el.text_content() if title_el else None
-                value = await value_el.text_content() if value_el else None
+                    if title and value:
+                        data[title.strip()] = value.strip()
 
-                if title and value:
-                    data[title.strip()] = value.strip()
-
-            await browser.close()
-            return data
+                await browser.close()
+                return data
+            except async_playwright.PlaywrightTimeoutError as e:
+                self.logger.error(f"Timeout error during scraping for CNPJ {cnpj}: {e}")
+                raise
 
     async def set_cache(self, cnpj, cache):
         """

@@ -2,6 +2,11 @@ import aio_pika
 import asyncio
 import json
 
+
+from webscraper.exceptions import InvalidParameterException
+
+from webscraper.models.message_dto import QueueMessageDTO
+
 from webscraper.helpers.log import Log
 
 
@@ -28,7 +33,7 @@ class AsyncRabbitMQClient(object):
 
         :rtype: None
         """
-        if not self._connection:
+        if not self._connection or self._connection.is_closed:
             self._connection = await aio_pika.connect_robust(self.url)
             async with self._connection.channel() as channel:
                 await channel.declare_queue(self.queue_name, durable=True)
@@ -38,15 +43,35 @@ class AsyncRabbitMQClient(object):
         Publishes a message to the queue asynchronously.
 
         :param webscraper.models.message_dto.QueueMessageDTO body: The message body to publish
+
+        :raises aio_pika.exceptions.AMQPConnectionError: If the connection to RabbitMQ fails.
+        :raises webscraper.exceptions.InvalidParameterException: If the body is not in the correct format.
+        :raises Exception: If message serialization or publishing fails.
         :rtype: None
         """
-        await self.connect()
-        message = aio_pika.Message(body.json().encode())
 
-        async with self._connection.channel() as channel:
-            await channel.default_exchange.publish(message, routing_key=self.queue_name)
+        if not isinstance(body, QueueMessageDTO):
+            raise InvalidParameterException(
+                "'body' must be an instance of QueueMessageDTO"
+            )
 
-        self.logger.info(f"Sent message: {body.model_dump()}")
+        try:
+            await self.connect()
+            message = aio_pika.Message(body.json().encode())
+
+            async with self._connection.channel() as channel:
+                await channel.default_exchange.publish(
+                    message, routing_key=self.queue_name
+                )
+
+            self.logger.info(f"Sent message: {body.model_dump()}")
+
+        except aio_pika.exceptions.AMQPConnectionError as e:
+            self.logger.error(f"Failed to connect to RabbitMQ: {e}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Error while publishing message: {e}")
+            raise
 
     async def consume_forever(self, callback):
         """
@@ -57,12 +82,12 @@ class AsyncRabbitMQClient(object):
                                          Needs to accept a dict (message body) as parameter.
         :rtype: None
         """
-        await self.connect()
-
-        channel = await self._connection.channel()
-        queue = await channel.get_queue(self.queue_name)
-
         while True:
+
+            await self.connect()
+            channel = await self._connection.channel()
+            queue = await channel.get_queue(self.queue_name)
+
             try:
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
@@ -72,12 +97,21 @@ class AsyncRabbitMQClient(object):
                             try:
                                 await callback(body)
                             except Exception as e:
-                                self.logger.exception(f"Error processing message: {e}")
+                                self.logger.error(
+                                    f"Error processing message {body}: {e}"
+                                )
 
             except aio_pika.exceptions.AMQPConnectionError:
-                # Tries to automatically reconnect
+                self.logger.warning(
+                    "Connection lost to RabbitMQ. Retrying in 5 seconds..."
+                )
                 await asyncio.sleep(5)
-                await self.connect()
+            except Exception as e:
+                self.logger.error(
+                    f"Unexpected error occurred while consuming a message: {e}"
+                )
+            finally:
+                await self.close()
 
     async def close(self):
         """
